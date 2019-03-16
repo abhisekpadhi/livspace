@@ -7,8 +7,7 @@ from django.http import JsonResponse
 from django.forms import model_to_dict
 from api.models import *
 import json
-# from api.tree import Node
-# from api.decision import Decider
+from django.core.files.storage import FileSystemStorage
 from pprint import pprint
 import collections
 
@@ -172,7 +171,7 @@ class QuestionApi(View):
         Req. body example:
         {'tags': [{'choice': 2, 'question': 1}], 'user_id': 1}
         :param request: django request object
-        :return: Design objects
+        :return: django response object
         '''
         request_json = json.loads(request.body)
         purchase_profile = (request_json['user_id'], self.retrieve_tags_ids(request_json['tags']))
@@ -233,3 +232,57 @@ class QuestionApi(View):
                 designs.append(design_tag.design)
 
         return designs
+
+class DesginerApi(View):
+    def post(self, request):
+        '''
+        Receives choices of designer.
+        :param request: django request object
+        :return: django response object
+        '''
+        question_api = QuestionApi()
+        user_id = request.POST.get('user_id')
+        tags = question_api.retrieve_tags_ids([json.loads(tag) for tag in request.POST.getlist('tags[]')])
+        designer_profile = (user_id, tags)
+
+        image_file = request.FILES.get('image_file')
+        if image_file and user_id and tags:
+            fs = FileSystemStorage()
+            filename = fs.save(image_file.name, image_file)
+            uploaded_file_url = fs.url(filename) # /static/images/X_217c5312.jpg
+
+            '''Create design'''
+            design = self.create_design(uploaded_file_url)
+
+            '''Create_design_tag_mapping'''
+            mappings = self.create_design_tag_mapping(designer_profile[1], design)
+
+            response = {
+                "status": "success",
+                "message": "Updated design tag mapping."
+            }
+            HTTP_STATUS = 200
+        else:
+            response = {
+                "status": "failed",
+                "message": "Bad request."
+            }
+            HTTP_STATUS = 400
+        return JsonResponse(response, safe=False, status=HTTP_STATUS)
+
+    def create_design(self, image_url):
+        design = Design(image_url=image_url)
+        design.save()
+        return design
+
+
+    def create_design_tag_mapping(self, tags, design):
+        mappings = []
+        for tag in tags:
+            design_tag_mapping = DesignTagMapping(
+                design=design,
+                tag=tag
+            )
+            design_tag_mapping.save()
+            mappings.append(design_tag_mapping)
+        return mappings

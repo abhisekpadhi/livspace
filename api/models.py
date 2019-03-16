@@ -35,6 +35,7 @@ class Tag(models.Model):
 
 class Design(models.Model):
     image_url = models.TextField(validators=[URLValidator()], null=False)
+    # image_file = models.FileField(upload_to='static/images/', null=True)
 
 class DesignTagMapping(models.Model):
     design = models.ForeignKey('Design', on_delete=models.CASCADE, null=True)
