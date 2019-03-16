@@ -1,0 +1,8 @@
+amqp==2.3.2
+billiard==3.5.0.4
+celery==4.2.1
+Django==1.11.17
+kombu==4.2.1
+mysqlclient==1.3.14
+pytz==2018.7
+vine==1.1.4
