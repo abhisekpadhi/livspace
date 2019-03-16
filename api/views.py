@@ -203,17 +203,19 @@ class QuestionApi(View):
         :param tag: Tag object
         :return: list of related tag_ids
         '''
-        tags = []
-        if RelatedTagMap.objects.filter(tag_1=tag).exists():
-            tags.append([tag.id for tag in RelatedTagMap.objects.filter(tag_1=tag)])
+        tags = [tag.id]
+        if RelatedTagMap.objects.filter(tag_1_id=tag.id).exists():
+            for tag in RelatedTagMap.objects.filter(tag_1_id=tag.id):
+                tags.append(tag.tag_2_id)
 
-        if RelatedTagMap.objects.filter(tag_2=tag).exists():
-            tags.append([tag.id for tag in RelatedTagMap.objects.filter(tag_2=tag)])
+        if RelatedTagMap.objects.filter(tag_2_id=tag.id).exists():
+            for tag in RelatedTagMap.objects.filter(tag_2_id=tag.id):
+                tags.append(tag.tag_1_id)
 
         return set(tags)
 
 
-    def recommend_designs(self, purchase_profile=collections.namedtuple('purchase_profile', ['user_id', 'tags'])):
+    def recommend_designs(self, purchase_profile):
         '''
         Returns recommended designs for a purchase_profile.
         :param purchase_profile: set containing user_id and list of tags
@@ -222,10 +224,12 @@ class QuestionApi(View):
         selected_tags = []
         designs = []
 
-        for tag in purchase_profile.tags:
-            selected_tags.append([Tag.objects.get(id=tag) for tag in self.get_related_tags_ids(tag)])
+        for tag in purchase_profile[1]:
+            for tag in self.get_related_tags_ids(tag):
+                selected_tags.append(Tag.objects.get(id=tag))
 
         for tag in selected_tags:
-            designs.append([design_tag.design for design_tag in DesignTagMapping.objects.filter(tag=tag)])
+            for design_tag in DesignTagMapping.objects.filter(tag=tag):
+                designs.append(design_tag.design)
 
         return designs
