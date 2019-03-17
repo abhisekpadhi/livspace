@@ -204,3 +204,7 @@ curl -X POST \
     "message": "Updated design tag mapping."
 }
 ```
+
+# :ok_hand: ER Diagram and Flowchart
+
+![Image of Yaktocat](https://raw.githubusercontent.com/abhisekpadhi/livspace/master/resources/IMG_20190317_132834.jpeg?token=AGuqRK9JJIkdgHLmb2Z_Nlmli95Pf5asks5cjh8cwA%3D%3D)
