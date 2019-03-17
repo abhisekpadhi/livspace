@@ -9,7 +9,6 @@ from api.models import *
 import json
 from django.core.files.storage import FileSystemStorage
 from pprint import pprint
-import collections
 
 
 class Home(View):
@@ -18,119 +17,6 @@ class Home(View):
             "status": "success"
         }
         return JsonResponse(response)
-
-
-class UserView(View):
-    def get(self, request):
-        '''
-        Retrieves a user.
-        :param request: django request object
-        :return: JsonResponse
-        '''
-        queryset = User.objects.filter(email=request.GET.get('email', None))
-        if queryset:
-            response = [model_to_dict(user) for user in queryset]
-            HTTP_STATUS = 200
-        else:
-            response = {
-                "status": "failed",
-                "message": "No email provided/User does not exists."
-            }
-            HTTP_STATUS = 404
-        return JsonResponse(response, safe=False, status=HTTP_STATUS)
-
-    def post(self, request):
-        '''
-        Creates a user.
-        Notes:
-        Date format: %d-%m-%Y
-
-        :param request: django request object
-        :return: JsonResponse
-        '''
-        jsonData = json.loads(request.body)
-        print(jsonData)
-        if 'email' not in jsonData.keys():
-            status = "failed"
-            status_message = "Missing email field."
-        elif not User.objects.filter(email=jsonData['email']).exists():
-            User(
-                email=jsonData['email']
-            ).save()
-            status = "success"
-            status_message = "User created."
-        else:
-            status = "success"
-            status_message = "User already exists."
-        # Build response
-        response = {
-            "status": status,
-            "status_message": status_message
-        }
-        return JsonResponse(response)
-
-    def put(self, request):
-        '''
-        Updates a user.
-        :param request: django request object
-        :return: JsonResponse
-        '''
-        jsonData = json.loads(request.body)
-        print(jsonData)
-        if 'email' not in jsonData.keys():
-            status = "failed"
-            status_message = "Email is required to update user."
-            HTTP_STATUS = 400
-        elif not User.objects.filter(email=jsonData['email']).exists():
-            status = "failed"
-            status_message = "User does not exists."
-            HTTP_STATUS = 404
-        else:
-            User.objects.filter(email=jsonData['email']).update(
-                phone_number=jsonData['phone_number'] if 'phone_number' in jsonData.keys() else None,
-                permanent_addr=jsonData['permanent_addr'] if 'permanent_addr' in jsonData.keys() else None,
-                current_addr=jsonData['current_addr'] if 'current_addr' in jsonData.keys() else None,
-                aadhar_number=jsonData['aadhar_number'] if 'aadhar_number' in jsonData.keys() else None,
-                dl_number=jsonData['dl_number'] if 'dl_number' in jsonData.keys() else None,
-                birth_certificate_serial=jsonData['birth_certificate_serial'] if 'birth_certificate_serial' in jsonData.keys() else None,
-                date_of_birth=jsonData['date_of_birth'] if 'date_of_birth' in jsonData.keys() else None
-            )
-            status = "success"
-            status_message = "User updated."
-            HTTP_STATUS = 200
-        response = {
-            "status": status,
-            "status_message": status_message
-        }
-        return JsonResponse(response, status=HTTP_STATUS)
-
-    def delete(self, request):
-        '''
-        Deletes a user
-        :param request: django request obj
-        :return: JsonResponse
-        '''
-        jsonData = json.loads(request.body)
-        print(jsonData)
-        if 'email' not in jsonData.keys():
-            status = "failed"
-            status_message = "Email is required to delete user."
-            HTTP_STATUS = 400
-        elif not User.objects.filter(email=jsonData['email']).exists():
-            status = "failed"
-            status_message = "User does not exists."
-            HTTP_STATUS = 404
-        else:
-            User.objects.filter(email=jsonData['email']).delete()
-            status = "success"
-            status_message = "User deleted."
-            HTTP_STATUS = 200
-        response = {
-            "status": status,
-            "status_message": status_message
-        }
-        return JsonResponse(response, status=HTTP_STATUS)
-
 
 class QuestionApi(View):
     def get(self, request):
@@ -176,6 +62,8 @@ class QuestionApi(View):
         request_json = json.loads(request.body)
         purchase_profile = (request_json['user_id'], self.retrieve_tags_ids(request_json['tags']))
         designs = [model_to_dict(design) for design in self.recommend_designs(purchase_profile)]
+        for design in designs:
+            design['image_url'] = request.build_absolute_uri(design['image_url'])
         response = {
             "status": "success",
             "message": {
@@ -222,14 +110,16 @@ class QuestionApi(View):
         '''
         selected_tags = []
         designs = []
-
+        designs_ids = []
         for tag in purchase_profile[1]:
             for tag in self.get_related_tags_ids(tag):
                 selected_tags.append(Tag.objects.get(id=tag))
 
         for tag in selected_tags:
             for design_tag in DesignTagMapping.objects.filter(tag=tag):
-                designs.append(design_tag.design)
+                if design_tag.design.id not in designs_ids:
+                    designs.append(design_tag.design)
+                    designs_ids.append(design_tag.design.id)
 
         return designs
 
@@ -249,7 +139,7 @@ class DesginerApi(View):
         if image_file and user_id and tags:
             fs = FileSystemStorage()
             filename = fs.save(image_file.name, image_file)
-            uploaded_file_url = fs.url(filename) # /static/images/X_217c5312.jpg
+            uploaded_file_url = fs.url(filename)            # /static/images/X_217c5312.jpg
 
             '''Create design'''
             design = self.create_design(uploaded_file_url)
@@ -274,7 +164,6 @@ class DesginerApi(View):
         design = Design(image_url=image_url)
         design.save()
         return design
-
 
     def create_design_tag_mapping(self, tags, design):
         mappings = []
